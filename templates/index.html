@@ -8,7 +8,19 @@
     <link rel="stylesheet" href="/static/bootstrap/css/bootstrap.min.css">
 </head>
 <body>
-    <h1>Welcome to my site</h1>
+    <h1>Hello There! Please use the app to use the system. :)</h1>
+
+    <form action="api/loginHandler" method="post">
+        <div class="form-group">
+            <label for="formUsername">Email address</label>
+            <input type="email" name="username" class="form-control" id="formUsername" placeholder="Enter username">
+        </div>
+        <div class="form-group">
+            <label for="formPW">Password</label>
+            <input type="password" class="form-control" id="formPW" name="password"/>
+        </div>
+        <button type="submit" class="btn btn-outline-dark">Login</button>
+    </form>
 
     <script src="/bootstrap/js/bootstrap.bundle.min.js"></script>
 </body>
