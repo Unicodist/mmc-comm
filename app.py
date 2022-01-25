@@ -1,9 +1,23 @@
-from flask import Flask, render_template, request
+sql_server = 'localhost'
+sql_user = 'root'
+sql_password = ''
+
+from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = "mysql://'root':''@localhost/mmc-conn"
+
+###############################################################
+
+#Database configurations:
+
+#app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:////databases/test.db"
+app.config['SQLALCHMY_BINDS'] = {
+    'localdb':"mysql://root:@localhost/ashura"
+}
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+
+##############################################################
 
 ##############################################################
 
@@ -11,12 +25,20 @@ db = SQLAlchemy(app)
 
 ##############################################################
 
-class Users(db.Model):
+class users(db.Model):
+    __bind_key__ = 'localdb'
     uid = db.Column(db.Integer,primary_key=True)
-    name = db.Column(db.String(50), nullable=False)
+    first_name = db.Column(db.String(20), nullable=False)
+    last_name = db.Column(db.String(20),nullable=False)
 
     def __repr__(self) -> str:
         return f"{self.uid} - {self.name}"
+
+class enrollment:
+    __bind_key__ = 'localdb'
+    faculty = db.Column(db.String(50),nullable=False)
+    course = db.Column(db.String(30),nullable=False)
+    batch_year = db.Column(db.Integer)
 
 @app.route('/')
 def hello_world():
