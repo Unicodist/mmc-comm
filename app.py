@@ -1,103 +1,102 @@
-from flask import Flask, jsonify
-from flask_restful import Api, Resource, abort
-from flask_sqlalchemy import SQLAlchemy
-from databaseinfo import sql_server, sql_user, sql_database, sql_password
+import hashlib
+from db_models.config import *
+from flask_restful import Api, Resource, abort, reqparse
+from custom.exceptions import DataNotFoundException
 
-app = Flask(__name__)
+user_put_args = reqparse.RequestParser()
+user_put_args.add_argument('firstname', type=str, help='Please input firstname', required=True)
+user_put_args.add_argument('lastname', type=str, help='Please input lastname', required=True)
+user_put_args.add_argument('address', type=str, help='Please input address', required=True)
+user_put_args.add_argument('phone', type=str, help='Please enter phone number', required=True)
+user_put_args.add_argument('password', type=str, help='Please choose a password', required=True)
+
+login_post_args = reqparse.RequestParser()
+login_post_args.add_argument('phone', type=str, help='Please enter the phone', required=True)
+login_post_args.add_argument('password', type=str, help='Please enter password', required=True)
+
 api = Api(app)
-#
-# ###############################################################
-#
-# # Database configurations:
-#
-app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql://{sql_user}:{sql_password}@{sql_server}/{sql_database}"
-app.config['SQLALCHMY_BINDS'] = {
-    'localdb': f"mysql://{sql_user}:{sql_password}@{sql_server}/ashura"
-}
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
 
 
-#
-#
-# ##############################################################
-#
-class Users(db.Model):
-
-    def __init__(self, fname, lname, address, phone):
-        self.first_name = fname
-        self.last_name = lname
-        self.address = address
-        self.phone = phone
-        self.isActive = True
-
-    uid = db.Column(db.Integer, primary_key=True)
-    first_name = db.Column(db.String(20), nullable=False)
-    last_name = db.Column(db.String(20), nullable=False)
-    address = db.Column(db.String(60), nullable=True)
-    phone = db.Column(db.String(10), nullable=False)
-    isActive = db.Column(db.Boolean, nullable=False)
-
-    def __repr__(self) -> str:
-        return f"{self.uid} - {self.name}"
-
-
-class Courses(db.Model):
-    c_id = db.Column(db.Integer, primary_key=True)
-    faculty_id = db.Column(db.Integer, nullable=False)
-    course_name = db.Column(db.String(30), nullable=False)
-    course_span = db.Column(db.Integer, nullable=True)
-
-
-class Faculties(db.Model):
-    f_id = db.Column(db.Integer, primary_key=True)
-    faculty_name = db.Column(db.String(50), nullable=False)
-
-
-class Enrollment(db.Model):
-    e_id = db.Column(db.Integer, primary_key=True)
-    faculty = db.Column(db.String(50), nullable=False)
-    course = db.Column(db.String(30), nullable=False)
-    batch_year = db.Column(db.Integer)
-
-    def __repr__(self) -> str:
-        return f"{self.e_id} - {self.faculty} - {self.faculty}"
-
-
-# After this section, we are writing api codes
 # some stray functions here:
 
+def getuserbyuid(uid):
+    user = Users.query.filter_by(uid=uid).first()
+    if user is None:
+        raise DataNotFoundException('Such user doesn\'t exist in the database')
+    else:
+        return user
+
+
+def getusersinfobyphone(phone):
+    phone = UserInfos.query.filter_by(phone=phone).first()
+    if phone is None:
+        DataNotFoundException('The phone number do not exist in the database')
+    else:
+        return phone
+
 def abort_if_user_not_found(uid):
-    if Users.query.filter_by(uid=uid).count() == 0:
-        abort(409, message="User not registered")
+    try:
+        user = getuserbyuid(uid)
+    except DataNotFoundException:
+        abort(401,'User doesn\'t exist in the database')
 
-
+# def verifyToken(token):
+#     if Tokens.query.filter_by(token=token).count() != 0:
+#         return abort(409,"Sorry! You are not authorized!")
+#     return True
 # Api classes:
 
-class UsersApi(Resource):
-    def get(self, fname, lname, phone, address):
-        data = {
-            'fname':fname,
-            'lname':lname,
-            'phone':phone,
-            'address':address
-        }
-        abort_if_user_not_found()
-        # return Users.query.filter_by(uid=user_id).first()
-        return jsonify(data)
+class UserObject(Resource):
+    def get(self, uid):
+        try:
+            user = getuserbyuid(uid)
+        except DataNotFoundException as de:
+            abort(402,'The user is not found')
+        return jsonify(user.dictify())
 
-    def put(self, fname, lname, phone, address):
-        print(fname,lname,phone,address)
-        regUser = Users(fname, lname, address, phone)
-        Users.add(regUser)
-        Users.commit()
+    def put(self, uid=None):
+        uid = None
+        args = user_put_args.parse_args()
+        new_user = Users(fname=args['firstname'], lname=args['lastname'])
+        db.session.add(new_user)
+        moreinfo = UserInfos(phone=args['phone'], address=args['address'], user=new_user)
+        db.session.add(moreinfo)
+        secret = Secrets(pw=hashlib.md5(args['password'].encode('utf8')).hexdigest(), pwuser=new_user)
+        db.session.add(secret)
+        db.session.commit()
+        return {'status':'success','phone':args['phone']}
+
+
+class MessageObject(Resource):
+    def get(self,sender):
+        pass
+
+    def post(self):
+        pass
+
+class MessageMenuObject(Resource):
+    def get(self):
+        pass
+
+
+class LoginObject(Resource):
+    def post(self):
+        #stores all the post values in the variable called args
+        args = login_post_args.parse_args()
+        #retrieves data from Usersinfo table that matches phone
+        #if the phone is not found, throws error
+        userinfo = getusersinfobyphone(args['phone'])
+        target_user = userinfo.user
+        print(target_user)
 
 
 # Api classes end here
 
 
 # registering api classes:
-api.add_resource(UsersApi, "/api/user/<string:fname>")
+api.add_resource(UserObject, "/api/user/<int:uid>/")
+api.add_resource(MessageObject, '/api/Message/')
+api.add_resource(LoginObject, '/api/login/')
 
 # entry point:
 if __name__ == "__main__":
