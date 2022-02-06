@@ -1,24 +1,15 @@
-from flask import Flask, jsonify
+from databaseinfo import *
+from flask import Flask
+from flask_restful import Api
 from flask_sqlalchemy import SQLAlchemy
-from databaseinfo import sql_server, sql_user, sql_database, sql_password
 from datetime import datetime
 
 app = Flask(__name__)
-#
-# ###############################################################
-#
-# # Database configurations:
-#
+api = Api(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql://{sql_user}:{sql_password}@{sql_server}/{sql_database}"
-
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-
-#
-#
-# ##############################################################
-#
 class Users(db.Model):
     uid = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(20), nullable=False)
@@ -32,8 +23,8 @@ class Users(db.Model):
     userinfos = db.relationship('UserInfos',cascade='delete', backref='user', lazy=True)
     posts = db.relationship('Posts', cascade='delete', backref='author', lazy=True)
     password = db.relationship('Secrets', cascade="delete", backref='pwuser', lazy=True)
-    sender = db.relationship('Messages',backref='sender', lazy=True)
-    receiver = db.relationship('Messages',backref='receiver', lazy=True)
+    # sender = db.relationship('Messages',backref='sender', lazy=True)
+    # receiver = db.relationship('Messages',backref='receiver', lazy=True)
 
     def dictify(self):
         return {'uid': self.uid, 'first_name': self.first_name, 'last_name': self.last_name, 'isActive': self.isActive}
@@ -84,8 +75,8 @@ class Messages(db.Model):
     date = db.Column(db.DateTime, default=datetime.now())
     content = db.Column(db.Text, nullable=True)
 
-    sender_id = db.Column(db.Integer, db.ForeignKey('users.uid'))
-    receiver_id = db.Column(db.Integer, db.ForeignKey('users.uid'))
+    # sender_id = db.Column(db.Integer, db.ForeignKey('users.uid'))
+    # receiver_id = db.Column(db.Integer, db.ForeignKey('users.uid'))
 
 
 class Tokens(db.Model):
